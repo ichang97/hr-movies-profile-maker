@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poster Style (Fixed Font)</title>
+    <title>Poster Style (Font Size Control)</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #222; color: white; display: flex; flex-direction: column; align-items: center; }
         h1 { margin-bottom: 20px; text-align: center; color: #ddd; font-size: 1.5rem; }
         
         .controls { background: #333; padding: 20px; border-radius: 8px; width: 100%; max-width: 500px; margin-bottom: 20px; box-sizing: border-box; border: 1px solid #444;}
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #bbb; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #bbb; display: flex; justify-content: space-between; }
         input[type="file"], textarea { width: 100%; padding: 10px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; box-sizing: border-box; }
         textarea { resize: vertical; height: 100px; font-family: inherit; }
         
         input[type="range"] { width: 100%; cursor: pointer; }
+        
+        /* Utility styles for slider labels */
+        .range-value { color: #007bff; font-weight: normal; }
 
         .canvas-container { 
             box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
@@ -33,7 +36,7 @@
 </head>
 <body>
 
-    <h1>ใส่ข้อความ (โหมดลายมือจุดไข่ปลา)</h1>
+    <h1>ใส่ข้อความ (ปรับขนาดได้)</h1>
 
     <div class="controls">
         <div class="form-group">
@@ -44,7 +47,7 @@
         <div class="form-group">
             <label>2. อัปโหลดฟอนต์ (.ttf / .otf)</label>
             <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2">
-            <small style="color: #aaa; font-size: 0.8rem;">*แนะนำฟอนต์ลายมือตัวบาง เพื่อความสวย</small>
+            <small style="color: #aaa; font-size: 0.8rem;">*แนะนำฟอนต์ลายมือตัวบางๆ</small>
         </div>
         
         <div class="form-group">
@@ -53,7 +56,15 @@
         </div>
 
         <div class="form-group">
-            <label>4. ปรับความมืดพื้นหลัง</label>
+            <label>
+                4. ขนาดตัวหนังสือ 
+                <span id="fontSizeDisplay" class="range-value">6%</span>
+            </label>
+            <input type="range" id="fontSizeRange" min="1" max="20" step="0.5" value="6">
+        </div>
+
+        <div class="form-group">
+            <label>5. ความมืดพื้นหลัง</label>
             <input type="range" id="dimRange" min="0" max="1" step="0.05" value="0.4">
         </div>
         
@@ -68,22 +79,32 @@
         const canvas = document.getElementById('imageCanvas');
         const ctx = canvas.getContext('2d');
         
+        // UI Elements
         const imageLoader = document.getElementById('imageLoader');
         const fontLoader = document.getElementById('fontLoader');
         const textInput = document.getElementById('textInput');
         const dimRange = document.getElementById('dimRange');
+        const fontSizeRange = document.getElementById('fontSizeRange');
+        const fontSizeDisplay = document.getElementById('fontSizeDisplay');
 
         let uploadedImage = null;
-        let currentFont = 'sans-serif'; // ค่าเริ่มต้น (ถ้ายังไม่อัปฟอนต์)
+        let currentFont = 'sans-serif'; 
 
-        // Init Canvas
+        // Init
         initCanvas();
 
         // Event Listeners
         imageLoader.addEventListener('change', handleImage);
         fontLoader.addEventListener('change', handleCustomFont);
-        textInput.addEventListener('input', draw);
-        dimRange.addEventListener('input', draw);
+        
+        // รวมกลุ่ม Event ที่ต้องวาดใหม่
+        [textInput, dimRange, fontSizeRange].forEach(el => {
+            el.addEventListener('input', () => {
+                // อัปเดตตัวเลข % ข้างหลัง slider
+                if(el === fontSizeRange) fontSizeDisplay.innerText = el.value + "%";
+                draw();
+            });
+        });
 
         function initCanvas() {
             canvas.width = 600;
@@ -91,8 +112,7 @@
             ctx.fillStyle = "#222";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "#666";
-            // ใช้ font ธรรมดา ไม่ bold เพื่อป้องกันการจำค่าเดิม
-            ctx.font = "24px sans-serif"; 
+            ctx.font = "24px sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText("รออัปโหลดรูป...", canvas.width/2, canvas.height/2);
@@ -119,22 +139,16 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const fontData = e.target.result;
-                // ตั้งชื่อ FontFace ใหม่ให้ไม่ซ้ำกับ CSS ทั่วไป
                 const fontName = 'MyCustomUploadFont';
                 const customFont = new FontFace(fontName, fontData);
 
                 customFont.load().then((loadedFont) => {
-                    // ล้างฟอนต์เก่าที่อาจค้างอยู่ออก (ถ้าทำได้) หรือ Add ทับเข้าไป
                     document.fonts.add(loadedFont);
-                    
-                    // เปลี่ยนตัวแปร currentFont ให้เป็นชื่อที่เราตั้งเอง
                     currentFont = fontName;
-                    
-                    console.log("Font loaded used:", currentFont);
                     draw();
                 }).catch(err => {
                     console.error(err);
-                    alert("ฟอนต์นี้มีปัญหา ลองหาไฟล์อื่นดูครับ");
+                    alert("ฟอนต์มีปัญหา ลองเปลี่ยนไฟล์ครับ");
                 });
             }
             reader.readAsArrayBuffer(file);
@@ -147,23 +161,26 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(uploadedImage, 0, 0);
 
-            // 2. Dim Background (Overlay)
+            // 2. Dim Background
             const dimLevel = dimRange.value;
             ctx.fillStyle = `rgba(0, 0, 0, ${dimLevel})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 3. Setup Text Params
+            // 3. Calculate Font Size
+            // รับค่าจาก Slider (เป็น %) แปลงเป็น pixel
+            const sizePercent = fontSizeRange.value;
+            const fontSize = canvas.width * (sizePercent / 100);
+
+            // คำนวณค่าที่สัมพันธ์กัน เพื่อให้สัดส่วนคงเดิม
+            const lineHeight = fontSize * 1.3;
+            const dotSpacing = fontSize * 0.05;   
+            const dotSize = fontSize * 0.025;     
+
+            // 4. Setup Text
             const text = textInput.value;
             const lines = text.split('\n');
-            
-            // ขนาดฟอนต์ 6% ของความกว้างรูป
-            const fontSize = canvas.width * 0.06; 
-            const lineHeight = fontSize * 1.3;
-            const dotSpacing = fontSize * 0.05;   // ระยะห่างจุด
-            const dotSize = fontSize * 0.025;     // ความหนาจุด (ปรับให้เล็กลงนิดนึงจะได้คม)
 
-            // --- แก้ไขสำคัญ: เอา 'bold' ออก ---
-            // ระบุชื่อฟอนต์ตรงๆ เพื่อไม่ให้ CSS มายุ่ง
+            // ใช้ชื่อฟอนต์เพียวๆ (ไม่ใส่ bold)
             ctx.font = `${fontSize}px "${currentFont}"`; 
             
             ctx.textAlign = "left";
@@ -173,19 +190,19 @@
             const marginX = canvas.width * 0.05;
             const marginY = canvas.width * 0.05;
 
-            // 4. Draw Text Loop
-            ctx.setLineDash([0, dotSpacing]); // จุดไข่ปลา
-            ctx.lineCap = "round";            // หัวกลม
+            // 5. Draw Loop
+            ctx.setLineDash([0, dotSpacing]); 
+            ctx.lineCap = "round";            
             ctx.strokeStyle = "white";
             ctx.lineWidth = dotSize;
 
             lines.forEach((line, index) => {
                 const y = marginY + (index * lineHeight);
                 
-                // วาดเส้นประ
+                // เส้นประ (จุด)
                 ctx.strokeText(line, marginX, y);
                 
-                // (Optional) เติมสีขาวจางๆ 5% เพื่อให้จุดดูมีมิติขึ้น แต่ไม่กวนเส้นประ
+                // Fill สีขาวจางๆ
                 ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
                 ctx.fillText(line, marginX, y);
             });
@@ -194,7 +211,7 @@
         function downloadImage() {
             if(!uploadedImage) return alert("อัปโหลดรูปก่อนครับ");
             const link = document.createElement('a');
-            link.download = 'my-quote.png';
+            link.download = 'custom-quote.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
         }
