@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poster Style (Font Size Control)</title>
+    <title>Poster Style (Font Size & Line Height)</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #222; color: white; display: flex; flex-direction: column; align-items: center; }
         h1 { margin-bottom: 20px; text-align: center; color: #ddd; font-size: 1.5rem; }
@@ -16,7 +16,6 @@
         
         input[type="range"] { width: 100%; cursor: pointer; }
         
-        /* Utility styles for slider labels */
         .range-value { color: #007bff; font-weight: normal; }
 
         .canvas-container { 
@@ -36,7 +35,7 @@
 </head>
 <body>
 
-    <h1>ใส่ข้อความ (ปรับขนาดได้)</h1>
+    <h1>ใส่ข้อความ (ปรับขนาด + ระยะบรรทัด)</h1>
 
     <div class="controls">
         <div class="form-group">
@@ -60,11 +59,19 @@
                 4. ขนาดตัวหนังสือ 
                 <span id="fontSizeDisplay" class="range-value">6%</span>
             </label>
-            <input type="range" id="fontSizeRange" min="1" max="50" step="0.5" value="6">
+            <input type="range" id="fontSizeRange" min="1" max="20" step="0.5" value="6">
         </div>
 
         <div class="form-group">
-            <label>5. ความมืดพื้นหลัง</label>
+            <label>
+                5. ระยะห่างบรรทัด (Line Height)
+                <span id="lineHeightDisplay" class="range-value">1.3x</span>
+            </label>
+            <input type="range" id="lineHeightRange" min="0.8" max="3.0" step="0.1" value="1.3">
+        </div>
+
+        <div class="form-group">
+            <label>6. ความมืดพื้นหลัง</label>
             <input type="range" id="dimRange" min="0" max="1" step="0.05" value="0.4">
         </div>
         
@@ -86,6 +93,9 @@
         const dimRange = document.getElementById('dimRange');
         const fontSizeRange = document.getElementById('fontSizeRange');
         const fontSizeDisplay = document.getElementById('fontSizeDisplay');
+        // [NEW] Elements for Line Height
+        const lineHeightRange = document.getElementById('lineHeightRange');
+        const lineHeightDisplay = document.getElementById('lineHeightDisplay');
 
         let uploadedImage = null;
         let currentFont = 'sans-serif'; 
@@ -97,11 +107,13 @@
         imageLoader.addEventListener('change', handleImage);
         fontLoader.addEventListener('change', handleCustomFont);
         
-        // รวมกลุ่ม Event ที่ต้องวาดใหม่
-        [textInput, dimRange, fontSizeRange].forEach(el => {
+        // รวมกลุ่ม Event Slider ต่างๆ ที่ต้องวาดใหม่
+        [textInput, dimRange, fontSizeRange, lineHeightRange].forEach(el => {
             el.addEventListener('input', () => {
-                // อัปเดตตัวเลข % ข้างหลัง slider
+                // อัปเดตตัวเลข % และ x ข้างหลัง slider
                 if(el === fontSizeRange) fontSizeDisplay.innerText = el.value + "%";
+                if(el === lineHeightRange) lineHeightDisplay.innerText = el.value + "x"; // [NEW] Update display
+
                 draw();
             });
         });
@@ -166,13 +178,17 @@
             ctx.fillStyle = `rgba(0, 0, 0, ${dimLevel})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 3. Calculate Font Size
-            // รับค่าจาก Slider (เป็น %) แปลงเป็น pixel
+            // 3. Calculate Font Size & Line Height
+            // รับค่าจาก Slider
             const sizePercent = fontSizeRange.value;
+            const lineHeightMultiplier = lineHeightRange.value; // [NEW] Get multiplier
+
             const fontSize = canvas.width * (sizePercent / 100);
 
-            // คำนวณค่าที่สัมพันธ์กัน เพื่อให้สัดส่วนคงเดิม
-            const lineHeight = fontSize * 1.3;
+            // [NEW] คำนวณ Line Height จาก Slider
+            const lineHeight = fontSize * lineHeightMultiplier;
+            
+            // คำนวณค่าที่สัมพันธ์กัน (จุด)
             const dotSpacing = fontSize * 0.05;   
             const dotSize = fontSize * 0.025;     
 
@@ -180,7 +196,6 @@
             const text = textInput.value;
             const lines = text.split('\n');
 
-            // ใช้ชื่อฟอนต์เพียวๆ (ไม่ใส่ bold)
             ctx.font = `${fontSize}px "${currentFont}"`; 
             
             ctx.textAlign = "left";
@@ -197,6 +212,7 @@
             ctx.lineWidth = dotSize;
 
             lines.forEach((line, index) => {
+                // ใช้ lineHeight ที่คำนวณใหม่ตรงนี้
                 const y = marginY + (index * lineHeight);
                 
                 // เส้นประ (จุด)
