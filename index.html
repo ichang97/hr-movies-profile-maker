@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poster Style (Upload Font Only)</title>
+    <title>Poster Style (Fixed Font)</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #222; color: white; display: flex; flex-direction: column; align-items: center; }
-        h1 { margin-bottom: 20px; text-align: center; color: #ddd; }
+        h1 { margin-bottom: 20px; text-align: center; color: #ddd; font-size: 1.5rem; }
         
         .controls { background: #333; padding: 20px; border-radius: 8px; width: 100%; max-width: 500px; margin-bottom: 20px; box-sizing: border-box; border: 1px solid #444;}
         .form-group { margin-bottom: 15px; }
@@ -14,8 +14,7 @@
         input[type="file"], textarea { width: 100%; padding: 10px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; box-sizing: border-box; }
         textarea { resize: vertical; height: 100px; font-family: inherit; }
         
-        /* Range slider สำหรับปรับความมืด */
-        input[type="range"] { width: 100%; }
+        input[type="range"] { width: 100%; cursor: pointer; }
 
         .canvas-container { 
             box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
@@ -34,7 +33,7 @@
 </head>
 <body>
 
-    <h1>สร้างข้อความ (มุมซ้ายบน + พื้นหลังมืด)</h1>
+    <h1>ใส่ข้อความ (โหมดลายมือจุดไข่ปลา)</h1>
 
     <div class="controls">
         <div class="form-group">
@@ -43,19 +42,19 @@
         </div>
 
         <div class="form-group">
-            <label>2. อัปโหลดฟอนต์ (บังคับ .ttf/.otf)</label>
+            <label>2. อัปโหลดฟอนต์ (.ttf / .otf)</label>
             <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2">
-            <small style="color: #888;">*ต้องอัปโหลดฟอนต์ก่อน ข้อความถึงจะสวย</small>
+            <small style="color: #aaa; font-size: 0.8rem;">*แนะนำฟอนต์ลายมือตัวบาง เพื่อความสวย</small>
         </div>
         
         <div class="form-group">
-            <label>3. พิมพ์ข้อความ</label>
+            <label>3. ข้อความ</label>
             <textarea id="textInput" placeholder="พิมพ์ข้อความที่นี่...">เราต่างเป็น&#10;พนักงานใหม่&#10;ของโลกใบนี้</textarea>
         </div>
 
         <div class="form-group">
-            <label>4. ความมืดพื้นหลัง (Fade)</label>
-            <input type="range" id="dimRange" min="0" max="1" step="0.1" value="0.5">
+            <label>4. ปรับความมืดพื้นหลัง</label>
+            <input type="range" id="dimRange" min="0" max="1" step="0.05" value="0.4">
         </div>
         
         <button onclick="downloadImage()" style="background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold;">บันทึกรูปภาพ</button>
@@ -75,9 +74,9 @@
         const dimRange = document.getElementById('dimRange');
 
         let uploadedImage = null;
-        let currentFont = 'sans-serif'; // ฟอนต์กันตาย
+        let currentFont = 'sans-serif'; // ค่าเริ่มต้น (ถ้ายังไม่อัปฟอนต์)
 
-        // เริ่มต้น
+        // Init Canvas
         initCanvas();
 
         // Event Listeners
@@ -92,8 +91,10 @@
             ctx.fillStyle = "#222";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "#666";
-            ctx.font = "bold 24px sans-serif";
+            // ใช้ font ธรรมดา ไม่ bold เพื่อป้องกันการจำค่าเดิม
+            ctx.font = "24px sans-serif"; 
             ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
             ctx.fillText("รออัปโหลดรูป...", canvas.width/2, canvas.height/2);
         }
 
@@ -114,15 +115,27 @@
         function handleCustomFont(e) {
             const file = e.target.files[0];
             if (!file) return;
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 const fontData = e.target.result;
-                const customFont = new FontFace('UploadedFont', fontData);
+                // ตั้งชื่อ FontFace ใหม่ให้ไม่ซ้ำกับ CSS ทั่วไป
+                const fontName = 'MyCustomUploadFont';
+                const customFont = new FontFace(fontName, fontData);
+
                 customFont.load().then((loadedFont) => {
+                    // ล้างฟอนต์เก่าที่อาจค้างอยู่ออก (ถ้าทำได้) หรือ Add ทับเข้าไป
                     document.fonts.add(loadedFont);
-                    currentFont = 'UploadedFont'; // เปลี่ยนไปใช้ฟอนต์ที่อัปโหลด
+                    
+                    // เปลี่ยนตัวแปร currentFont ให้เป็นชื่อที่เราตั้งเอง
+                    currentFont = fontName;
+                    
+                    console.log("Font loaded used:", currentFont);
                     draw();
-                }).catch(err => alert("โหลดฟอนต์ไม่ผ่าน ลองไฟล์อื่นดูนะ"));
+                }).catch(err => {
+                    console.error(err);
+                    alert("ฟอนต์นี้มีปัญหา ลองหาไฟล์อื่นดูครับ");
+                });
             }
             reader.readAsArrayBuffer(file);
         }
@@ -130,55 +143,58 @@
         function draw() {
             if (!uploadedImage) return;
 
-            // 1. วาดรูปต้นฉบับ
+            // 1. Clear & Draw Image
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(uploadedImage, 0, 0);
 
-            // 2. ถมดำ (Dim Background) เพื่อให้ตัวหนังสือชัด
+            // 2. Dim Background (Overlay)
             const dimLevel = dimRange.value;
             ctx.fillStyle = `rgba(0, 0, 0, ${dimLevel})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 3. ตั้งค่า Text
+            // 3. Setup Text Params
             const text = textInput.value;
             const lines = text.split('\n');
             
-            // ปรับขนาดฟอนต์ตามความกว้างรูป (6% ของรูป)
+            // ขนาดฟอนต์ 6% ของความกว้างรูป
             const fontSize = canvas.width * 0.06; 
             const lineHeight = fontSize * 1.3;
-            const dotSize = fontSize * 0.03;      
-            const dotSpacing = fontSize * 0.05;   
+            const dotSpacing = fontSize * 0.05;   // ระยะห่างจุด
+            const dotSize = fontSize * 0.025;     // ความหนาจุด (ปรับให้เล็กลงนิดนึงจะได้คม)
 
-            ctx.font = `bold ${fontSize}px ${currentFont}`;
-            ctx.textAlign = "left";      // ชิดซ้าย
-            ctx.textBaseline = "top";    // เริ่มวาดจากเส้นบน
+            // --- แก้ไขสำคัญ: เอา 'bold' ออก ---
+            // ระบุชื่อฟอนต์ตรงๆ เพื่อไม่ให้ CSS มายุ่ง
+            ctx.font = `${fontSize}px "${currentFont}"`; 
+            
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
 
-            // กำหนด Margin (ขยับจากมุมซ้ายบนเข้ามานิดนึง)
-            const marginX = canvas.width * 0.05; // 5% จากซ้าย
-            const marginY = canvas.width * 0.05; // 5% จากบน
+            // Margin: 5% จากซ้ายและบน
+            const marginX = canvas.width * 0.05;
+            const marginY = canvas.width * 0.05;
 
-            // 4. วาดตัวหนังสือ
+            // 4. Draw Text Loop
             ctx.setLineDash([0, dotSpacing]); // จุดไข่ปลา
-            ctx.lineCap = "round";            // หัวจุดกลม
-            ctx.strokeStyle = "white";        // สีขอบ (จุด)
-            ctx.lineWidth = dotSize;          // ความหนาจุด
+            ctx.lineCap = "round";            // หัวกลม
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = dotSize;
 
             lines.forEach((line, index) => {
                 const y = marginY + (index * lineHeight);
                 
-                // วาดเส้นประ (จุด)
+                // วาดเส้นประ
                 ctx.strokeText(line, marginX, y);
                 
-                // วาดสีขาวจางๆ ข้างใน (Optional: ช่วยให้อ่านง่ายขึ้นอีกนิด)
-                ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+                // (Optional) เติมสีขาวจางๆ 5% เพื่อให้จุดดูมีมิติขึ้น แต่ไม่กวนเส้นประ
+                ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
                 ctx.fillText(line, marginX, y);
             });
         }
         
         function downloadImage() {
-            if(!uploadedImage) return alert("ยังไม่ได้โหลดรูปเลยพี่!");
+            if(!uploadedImage) return alert("อัปโหลดรูปก่อนครับ");
             const link = document.createElement('a');
-            link.download = 'dark-poster-style.png';
+            link.download = 'my-quote.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
         }
