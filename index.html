@@ -3,196 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text on Image (Dashed & Custom Font)</title>
+    <title>Poster Style Text App</title>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
-    
     <style>
         body { font-family: 'Kanit', sans-serif; padding: 20px; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; }
-        h1 { margin-bottom: 20px; }
-        
-        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; margin-bottom: 20px; }
+        h1 { margin-bottom: 20px; text-align: center; }
+        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; margin-bottom: 20px; box-sizing: border-box;}
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], select, input[type="file"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        
-        /* ปุ่มสลับสีพื้นหลังตัวหนังสือ */
-        .checkbox-group { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
-
+        input[type="text"], select, input[type="file"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: vertical; height: 100px; }
         .canvas-container { 
             box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
-            line-height: 0; 
+            line-height: 0;
+            max-width: 100%;
+            overflow: auto;
         }
         canvas { 
             background-color: #ddd; 
+            /* ให้ canvas แสดงผลไม่เกินหน้าจอ แต่ size จริงจะเท่ารูปต้นฉบับ */
             max-width: 100%; 
             height: auto; 
+            display: block;
         }
     </style>
 </head>
 <body>
 
-    <h1>สร้างแบบคัดลายมือ (Dashed Text)</h1>
+    <h1>สร้างข้อความสไตล์โปสเตอร์ (ตามสัดส่วนรูป)</h1>
 
     <div class="controls">
         <div class="form-group">
-            <label>1. เลือกรูปภาพพื้นหลัง (ถ้ามี)</label>
+            <label>1. อัปโหลดรูปภาพ (บังคับ)</label>
             <input type="file" id="imageLoader" accept="image/*">
         </div>
         
         <div class="form-group">
-            <label>2. อัปโหลดฟอนต์เอง (.ttf / .otf)</label>
-            <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2">
-            <small style="color: #666;">*อัปแล้วจะเลือกใช้อัตโนมัติ</small>
+            <label>2. พิมพ์ข้อความ (Enter เพื่อเว้นบรรทัด)</label>
+            <textarea id="textInput" placeholder="พิมพ์ข้อความที่นี่...&#10;เว้นบรรทัดได้">เราต่างเป็น&#10;พนักงานใหม่&#10;ของโลกใบนี้</textarea>
         </div>
 
         <div class="form-group">
-            <label>3. หรือเลือก Google Font</label>
+            <label>3. เลือกฟอนต์ (หรืออัปโหลด)</label>
+            <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2" style="margin-bottom: 5px;">
             <select id="fontSelect">
-                <option value="'Kanit', sans-serif">Kanit (Google Font)</option>
-                <option value="'Sarabun', sans-serif">Sarabun (Google Font)</option>
+                <option value="'Kanit', sans-serif">Kanit (Google)</option>
+                <option value="'Sarabun', sans-serif">Sarabun (Google)</option>
                 <option value="Arial, sans-serif">Arial</option>
             </select>
         </div>
-
-        <div class="form-group">
-            <label>4. ข้อความ</label>
-            <input type="text" id="textInput" placeholder="พิมพ์ข้อความ..." value="ก ไก่">
-        </div>
-
-        <div class="form-group checkbox-group">
-            <input type="checkbox" id="dashedCheck" checked>
-            <label for="dashedCheck">เปิดโหมดเส้นประ (คัดลายมือ)</label>
-        </div>
         
-        <button onclick="downloadImage()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%;">บันทึกรูปภาพ</button>
+        <button onclick="downloadImage()" style="background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px;">บันทึกรูปภาพ</button>
     </div>
 
     <div class="canvas-container">
-        <canvas id="imageCanvas" width="1080" height="1080"></canvas>
+        <canvas id="imageCanvas"></canvas>
     </div>
 
     <script>
         const canvas = document.getElementById('imageCanvas');
         const ctx = canvas.getContext('2d');
         
-        // Inputs
         const imageLoader = document.getElementById('imageLoader');
         const fontLoader = document.getElementById('fontLoader');
         const textInput = document.getElementById('textInput');
         const fontSelect = document.getElementById('fontSelect');
-        const dashedCheck = document.getElementById('dashedCheck');
 
         let uploadedImage = null;
-        let currentFont = fontSelect.value; // เริ่มต้นใช้ค่าจาก Select
+        let currentFont = fontSelect.value;
 
-        // Init
-        draw();
+        // ข้อความเริ่มต้นตอนยังไม่มีรูป
+        ctx.canvas.width = 600;
+        ctx.canvas.height = 400;
+        ctx.fillStyle = "#ccc";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#666";
+        ctx.font = "bold 30px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("กรุณาอัปโหลดรูปภาพก่อน", canvas.width/2, canvas.height/2);
 
         // Event Listeners
         imageLoader.addEventListener('change', handleImage);
-        fontLoader.addEventListener('change', handleCustomFont); // เพิ่ม Listener สำหรับ Font
+        fontLoader.addEventListener('change', handleCustomFont);
         textInput.addEventListener('input', draw);
         fontSelect.addEventListener('change', (e) => {
             currentFont = e.target.value;
             draw();
         });
-        dashedCheck.addEventListener('change', draw);
 
-        // ฟังก์ชันจัดการรูปภาพ
         function handleImage(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
                 uploadedImage = new Image();
-                uploadedImage.onload = draw;
+                uploadedImage.onload = function() {
+                    // ปรับขนาด Canvas ให้เท่ากับรูปภาพต้นฉบับจริงๆ
+                    canvas.width = uploadedImage.naturalWidth;
+                    canvas.height = uploadedImage.naturalHeight;
+                    draw();
+                }
                 uploadedImage.src = event.target.result;
             }
             if(e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
         }
 
-        // ฟังก์ชันจัดการ Custom Font (สำคัญ)
-        // Ref: https://developer.mozilla.org/en-US/docs/Web/API/FontFace
         function handleCustomFont(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
-                // แปลงไฟล์เป็น ArrayBuffer เพื่อสร้าง FontFace
                 const fontData = e.target.result;
-                // สร้าง FontFace Object ชื่อ 'CustomUploadedFont'
-                const customFont = new FontFace('CustomUploadedFont', fontData);
-
-                // สั่งโหลดฟอนต์เข้า document
+                const customFont = new FontFace('CustomFont', fontData);
                 customFont.load().then((loadedFont) => {
                     document.fonts.add(loadedFont);
+                    currentFont = 'CustomFont';
                     
-                    // เปลี่ยนตัวแปร currentFont ให้เป็นชื่อฟอนต์ใหม่ทันที
-                    currentFont = 'CustomUploadedFont';
-                    
-                    // (Optional) เพิ่มตัวเลือกใน Dropdown ให้รู้ว่าใช้อันนี้อยู่
-                    const option = document.createElement("option");
-                    option.text = "--- ฟอนต์ที่อัปโหลด ---";
-                    option.value = "CustomUploadedFont";
+                    // อัปเดต Select box
+                    let option = fontSelect.querySelector("option[value='CustomFont']");
+                    if(!option) {
+                        option = document.createElement("option");
+                        option.text = "--- ฟอนต์ที่อัปโหลด ---";
+                        option.value = "CustomFont";
+                        fontSelect.add(option);
+                    }
                     option.selected = true;
-                    fontSelect.add(option);
-                    fontSelect.value = "CustomUploadedFont";
-
-                    draw(); // วาดใหม่
-                }).catch((error) => {
-                    console.error("Font loading failed:", error);
-                    alert("โหลดฟอนต์ไม่สำเร็จ ไฟล์อาจเสียหาย");
+                    draw();
                 });
             }
             reader.readAsArrayBuffer(file);
         }
 
         function draw() {
-            // 1. Clear Canvas
+            if (!uploadedImage) return;
+
+            // 1. Clear & Draw Image
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(uploadedImage, 0, 0);
 
-            // 2. Draw Background
-            if (uploadedImage) {
-                ctx.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
-            } else {
-                ctx.fillStyle = "white";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-
-            // 3. Setup Text Style
             const text = textInput.value;
+            // แยกบรรทัดด้วย \n
+            const lines = text.split('\n');
             
-            // ใช้ฟอนต์ปัจจุบัน (Google หรือ Custom)
-            ctx.font = `bold 200px ${currentFont}`;
+            // คำนวณขนาดต่างๆ ตามความกว้างรูป เพื่อให้ scale สวยงาม
+            const fontSize = canvas.width * 0.08; // ขนาดฟอนต์ 8% ของความกว้างรูป
+            const lineHeight = fontSize * 1.2;    // ความสูงบรรทัด
+            const dotSize = fontSize * 0.04;      // ความหนาของจุด
+            const dotSpacing = fontSize * 0.06;   // ระยะห่างจุด
+
+            ctx.font = `bold ${fontSize}px ${currentFont}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
+            
+            // คำนวณจุดกึ่งกลาง
+            const startX = canvas.width / 2;
+            // คำนวณจุดเริ่มแกน Y ให้กลุ่มข้อความอยู่ตรงกลางพอดี
+            const totalHeight = lines.length * lineHeight;
+            let startY = (canvas.height - totalHeight) / 2 + (lineHeight/2);
 
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
+            // --- ส่วนที่ 1: วาดเส้นบรรทัดสีน้ำเงิน (Notebook Lines) ---
+            ctx.setLineDash([]); // เส้นทึบ
+            ctx.strokeStyle = "rgba(137, 207, 240, 0.8)"; // สีฟ้าอ่อนๆ โปร่งแสง
+            ctx.lineWidth = dotSize * 0.8; // เส้นบางๆ
 
-            // ตรวจสอบโหมดเส้นประ
-            // Ref: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/setLineDash
-            if (dashedCheck.checked) {
-                // โหมดคัดลายมือ (เส้นประ)
-                ctx.setLineDash([15, 15]); // [ความยาวขีด, ความยาวช่องว่าง]
-                ctx.lineWidth = 3;         // ความหนาเส้น
-                ctx.strokeStyle = "black"; // สีเส้น
-                ctx.strokeText(text, centerX, centerY);
-                
-                // ไม่ fillText หรือ fill ด้วยสีขาวจางๆ เพื่อให้อ่านง่ายขึ้นถ้ามีพื้นหลัง
-                ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-                ctx.fillText(text, centerX, centerY);
-            } else {
-                // โหมดปกติ (ตัวทึบ)
-                ctx.setLineDash([]); // ยกเลิกเส้นประ
-                ctx.fillStyle = "black";
-                ctx.fillText(text, centerX, centerY);
-            }
+            lines.forEach((line, index) => {
+                const y = startY + (index * lineHeight);
+                // วาดเส้นที่ระดับเดียวกับ textBaseline (กลางตัวหนังสือ)
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            });
+
+            // --- ส่วนที่ 2: วาดตัวหนังสือจุดสีขาว (Dotted Text) ---
+            // เทคนิคทำจุดกลม: setLineDash([0, spacing]) แล้วใช้ lineCap = "round"
+            ctx.setLineDash([0, dotSpacing]); 
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = dotSize;
+
+            lines.forEach((line, index) => {
+                const y = startY + (index * lineHeight);
+                // ใช้ strokeText เพื่อวาดขอบเป็นจุด
+                ctx.strokeText(line, startX, y);
+                // (Optional) fill สีขาวจางๆ ทับ เพื่อให้จุดดูเด่นขึ้นในที่มืด
+                ctx.fillStyle = "rgba(255,255,255,0.2)";
+                ctx.fillText(line, startX, y);
+            });
         }
         
         function downloadImage() {
+            if(!uploadedImage) {
+                alert("กรุณาอัปโหลดรูปภาพก่อนบันทึก");
+                return;
+            }
             const link = document.createElement('a');
-            link.download = 'handwriting-practice.png';
-            link.href = canvas.toDataURL();
+            link.download = 'poster-style.png';
+            link.href = canvas.toDataURL('image/png', 1.0); // คุณภาพสูงสุด
             link.click();
         }
     </script>
